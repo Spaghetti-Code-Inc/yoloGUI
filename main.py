@@ -9,8 +9,12 @@ from ultralytics import YOLO
 from PIL import Image, ImageTk
 import cv2
 import os
-import webcam
+import keyboard
+import time
+import shutil
+import numpy as np
 
+getFrame = False
 
 def file_uploaded():
     fileUploaded = True
@@ -26,11 +30,40 @@ def showError():
 
 #Function called to upload image from user desktop
 def upload_file():
-    global img
-    global img_s
     global filename
     f_types = [('Jpg Files', '*.jpg'),('Png Files', '*.png')]
     filename = filedialog.askopenfilename(filetypes=f_types)
+    show_file(filename)
+    update_left_panel()
+    global fileUploaded
+    fileUploaded = file_uploaded()
+
+# Function called that oversees all of the camera functions
+def run_camera():
+    # reading the input using the camera
+    ret,frame=vid.read()
+
+    # THE BUTTON PRESS TO CHANGE
+    # Once this key is pressed getFrame is flipped
+    if keyboard.is_pressed("b"):
+        global getFrame
+        getFrame = False
+        # Needed so holding down the button does not send multiple commands
+        time.sleep(.2)
+
+    # output
+    show_image(frame)
+    # global filename
+    # filename = "saved.jpg"
+    # cv2.imwrite(filename, frame)
+    # update_left_panel()
+    # global fileUploaded
+    # fileUploaded = file_uploaded()
+
+# Function that shows the file on the screen
+def show_file(filename):
+    global img
+    global img_s
     img=Image.open(filename)
     img_resized=img.resize((500,400)) # new width & height
     img_resized_s=img.resize((100,80)) # new width & height
@@ -38,10 +71,19 @@ def upload_file():
     img_s=ImageTk.PhotoImage(img_resized_s)
     b2 =tk.Button(m,image=img) # using Button 
     b2.grid(row=0,column=1)
-    update_left_panel()
-    global fileUploaded
-    fileUploaded = file_uploaded()
-    print(fileUploaded)
+
+def show_image(image):
+    global img
+    global img_s
+    img = Image.fromarray(image, 'RGB')
+    img_resized=img.resize((500,400)) # new width & height
+    img_resized_s=img.resize((100,80)) # new width & height
+    img=ImageTk.PhotoImage(img_resized)
+    img_s=ImageTk.PhotoImage(img_resized_s)
+    b2 =tk.Button(m,image=img) # using Button 
+    b2.grid(row=0,column=1)
+
+
     
 #initializes image, retuns image in small and large size
 def initImages(source):
@@ -62,6 +104,7 @@ def setupPanels(window, img_s, img_l):
     # left frame, for menu
     global left_frame 
     global left_label
+    global getFrame
     left_frame = Frame(window, width=200, height=400, bg='#669aaf')
     left_frame.grid(row=0, column=0, padx=10, pady=5)
 
@@ -74,7 +117,7 @@ def setupPanels(window, img_s, img_l):
     right_frame.grid(row=0, column=1, padx=10, pady=5)
 
     # add image to right frame
-    Label(right_frame, image=img_l).grid(row=0,column=0,padx=10,pady=10)
+    if(not getFrame): Label(right_frame, image=img_l).grid(row=0,column=0,padx=10,pady=10)
 
 
     # tool bar
@@ -82,11 +125,16 @@ def setupPanels(window, img_s, img_l):
     tool_bar.grid(row=2,column=0,padx=5,pady=5)
 
     # menu buttons
-    cameraButton = tk.Button(tool_bar, text='Use Webcam', command=lambda:webcam.runCamera()).grid(row=0,column=0,padx=5,pady=3,ipadx=10)
+    cameraButton = tk.Button(tool_bar, text='Use Webcam', command=lambda:start_frame()).grid(row=0,column=0,padx=5,pady=3,ipadx=10)
     uploadButton = tk.Button(tool_bar, text='Upload File', command= lambda:upload_file()).grid(row=1,column=0,padx=5,pady=3,ipadx=10)
     runButton = tk.Button(tool_bar, text='Run', command=lambda:run_algorythm()).grid(row=2,column=0,padx=5,pady=3,ipadx=10)
 
     return window
+
+
+def start_frame():
+    global getFrame
+    getFrame = True
 
 # updates the left panel upon image upload
 def update_left_panel():
@@ -94,33 +142,39 @@ def update_left_panel():
 
 # runs yolo object detection algorythm
 def run_algorythm():
+    # Makes sure a file is actually uploaded
     try:
         print(fileUploaded)
     except:
         print("must upload image first")
         showError()
         return
+    if(fileUploaded == False):
+        return
+    try:
+        print("try to remove tree")
+        shutil.rmtree("runs\detect\predict")
+    except:
+        print("No previous runs")
 
-    if fileUploaded:
-        try:
-            os.remove("/runs/detect/predict")
-        except:
-            print("No previous runs")
+    # Creates the bounding box on the image
+    model = YOLO('yolov8n.pt')
+    results = model.predict(source=filename, save=True)
+    # finding image and saving it to a variable
+    imageName = filename.split('/')
+    relativePath = "runs\detect\predict\\"+str(imageName[-1])
+    img=Image.open(relativePath)
+    img_resized=img.resize((500,400)) # new width & height
 
-        model = YOLO('yolov8n.pt')
-        results = model.predict(source=filename, save=True)
-        imageName = filename.split('/')
-        relativePath = "runs\detect\predict\\"+str(imageName[-1])
-        img=Image.open(relativePath)
-        img_resized=img.resize((500,400)) # new width & height
-
-        img=ImageTk.PhotoImage(img_resized)
-        
-        b2 =tk.Button(m,image=img) # using Button 
-        b2.grid(row=0,column=1)
-        
-        cv2.imshow("Image", relativePath)
-        # cv2.waitKey(5000)
+    # Showing image on the screen
+    img=ImageTk.PhotoImage(img_resized)
+    
+    print("add photo to white space")
+    b2 =tk.Button(m,image=img) # using Button 
+    b2.grid(row=0,column=1)
+    
+    cv2.imshow("Image", relativePath)
+    # cv2.waitKey(5000)
     
 
 m = initScreen()
@@ -130,5 +184,17 @@ default_img_s, default_img_l = initImages("baseImg.png")
 
 # update window with panels
 m = setupPanels(m, default_img_s, default_img_l)
+m.bind('<Escape>', lambda e: m.quit())
 
-m.mainloop()
+# initialize the camera
+cam_port = 0
+vid = cv2.VideoCapture(cam_port)
+getFrame = False
+while True:
+    m.update()
+    if(getFrame): run_camera()
+    # Running at about 30 fps
+    time.sleep(.0333)
+
+# vid.release()
+# cv2.destroyAllWindows()
