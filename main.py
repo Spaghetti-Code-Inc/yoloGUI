@@ -70,7 +70,8 @@ def run_camera():
         time.sleep(.2)
 
     # output
-    show_image(frame)
+    image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    show_image(image)
     global filename
     filename = "saved.jpg"
     cv2.imwrite(filename, frame)
