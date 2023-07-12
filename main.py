@@ -4,6 +4,7 @@ import tkinter as tk
 from tkinter import *
 from tkinter import filedialog
 from tkinter.filedialog import askopenfile
+from tkinter.filedialog import asksaveasfile
 from tkinter import messagebox
 from ultralytics import YOLO
 from PIL import Image, ImageTk
@@ -12,7 +13,6 @@ import os
 import keyboard
 import time
 import shutil
-import numpy as np
 
 getFrame = False
 
@@ -23,6 +23,24 @@ def file_uploaded():
 # Basic click function, prints to console
 def clicked():
     print("Clicked")
+
+# function to open pop up menu on image click event
+def popupm(b2):
+     try:         
+        x = b2.winfo_rootx()
+        y = b2.winfo_rooty()
+        popup.tk_popup(x, y, 0)
+     finally:
+           popup.grab_release()
+
+# Function to save image to users desktop
+def saveImg():
+    edge = ImageTk.getimage(img)
+    f = asksaveasfile(mode="w",initialfile = 'Untitled.jpg',
+    defaultextension=".jpg",filetypes=[('Jpg Files', '*.jpg'),('Png Files', '*.png')])
+    if not f:
+        return
+    edge.save(f)
 
 # simple function to show error
 def showError():
@@ -53,12 +71,12 @@ def run_camera():
 
     # output
     show_image(frame)
-    # global filename
-    # filename = "saved.jpg"
-    # cv2.imwrite(filename, frame)
-    # update_left_panel()
-    # global fileUploaded
-    # fileUploaded = file_uploaded()
+    global filename
+    filename = "saved.jpg"
+    cv2.imwrite(filename, frame)
+    update_left_panel()
+    global fileUploaded
+    fileUploaded = file_uploaded()
 
 # Function that shows the file on the screen
 def show_file(filename):
@@ -69,7 +87,7 @@ def show_file(filename):
     img_resized_s=img.resize((100,80)) # new width & height
     img=ImageTk.PhotoImage(img_resized)
     img_s=ImageTk.PhotoImage(img_resized_s)
-    b2 =tk.Button(m,image=img) # using Button 
+    b2 =tk.Button(m,image=img) # , command=lambda: popupm(b2) 
     b2.grid(row=0,column=1)
 
 def show_image(image):
@@ -117,7 +135,8 @@ def setupPanels(window, img_s, img_l):
     right_frame.grid(row=0, column=1, padx=10, pady=5)
 
     # add image to right frame
-    if(not getFrame): Label(right_frame, image=img_l).grid(row=0,column=0,padx=10,pady=10)
+    b2 =tk.Button(right_frame,image=img_l, command=lambda: upload_file()) # using Button 
+    b2.grid(row=0,column=1)
 
 
     # tool bar
@@ -126,7 +145,7 @@ def setupPanels(window, img_s, img_l):
 
     # menu buttons
     cameraButton = tk.Button(tool_bar, text='Use Webcam', command=lambda:start_frame()).grid(row=0,column=0,padx=5,pady=3,ipadx=10)
-    uploadButton = tk.Button(tool_bar, text='Upload File', command= lambda:upload_file()).grid(row=1,column=0,padx=5,pady=3,ipadx=10)
+    uploadButton = tk.Button(tool_bar, text='Upload Image', command= lambda:upload_file()).grid(row=1,column=0,padx=5,pady=3,ipadx=10)
     runButton = tk.Button(tool_bar, text='Run', command=lambda:run_algorythm()).grid(row=2,column=0,padx=5,pady=3,ipadx=10)
 
     return window
@@ -153,7 +172,7 @@ def run_algorythm():
         return
     try:
         print("try to remove tree")
-        shutil.rmtree("runs\detect\predict")
+        shutil.rmtree("runs")
     except:
         print("No previous runs")
 
@@ -166,25 +185,30 @@ def run_algorythm():
     img=Image.open(relativePath)
     img_resized=img.resize((500,400)) # new width & height
 
-    # Showing image on the screen
     img=ImageTk.PhotoImage(img_resized)
     
-    print("add photo to white space")
-    b2 =tk.Button(m,image=img) # using Button 
+    b2 =tk.Button(m,image=img, command=lambda: popupm(b2)) # using Button 
     b2.grid(row=0,column=1)
     
     cv2.imshow("Image", relativePath)
     # cv2.waitKey(5000)
     
-
+# initialize screen
 m = initScreen()
 
 # setup default image, resizes them for left and right panel respectfully
-default_img_s, default_img_l = initImages("baseImg.png")
+default_img_s, default_img_l = initImages("imageUpload.jpg")
 
 # update window with panels
 m = setupPanels(m, default_img_s, default_img_l)
 m.bind('<Escape>', lambda e: m.quit())
+
+# Pop up menu build
+popup = Menu(m, tearoff=0)
+
+popup.add_command(label="Save", command=lambda: saveImg())
+
+
 
 # initialize the camera
 cam_port = 0
@@ -195,6 +219,3 @@ while True:
     if(getFrame): run_camera()
     # Running at about 30 fps
     time.sleep(.0333)
-
-# vid.release()
-# cv2.destroyAllWindows()
