@@ -4,12 +4,13 @@ import tkinter as tk
 from tkinter import *
 from tkinter import filedialog
 from tkinter.filedialog import askopenfile
+from tkinter.filedialog import asksaveasfile
 from tkinter import messagebox
 from ultralytics import YOLO
 from PIL import Image, ImageTk
 import cv2
 import os
-import webcam
+#import webcam
 
 
 def file_uploaded():
@@ -19,6 +20,24 @@ def file_uploaded():
 # Basic click function, prints to console
 def clicked():
     print("Clicked")
+
+# function to open pop up menu on image click event
+def popupm(b2):
+     try:         
+        x = b2.winfo_rootx()
+        y = b2.winfo_rooty()
+        popup.tk_popup(x, y, 0)
+     finally:
+           popup.grab_release()
+
+# Function to save image to users desktop
+def saveImg():
+    edge = ImageTk.getimage(img)
+    f = asksaveasfile(mode="w",initialfile = 'Untitled.jpg',
+    defaultextension=".jpg",filetypes=[('Jpg Files', '*.jpg'),('Png Files', '*.png')])
+    if not f:
+        return
+    edge.save(f)
 
 # simple function to show error
 def showError():
@@ -36,7 +55,7 @@ def upload_file():
     img_resized_s=img.resize((100,80)) # new width & height
     img=ImageTk.PhotoImage(img_resized)
     img_s=ImageTk.PhotoImage(img_resized_s)
-    b2 =tk.Button(m,image=img) # using Button 
+    b2 =tk.Button(m,image=img) # , command=lambda: popupm(b2) 
     b2.grid(row=0,column=1)
     update_left_panel()
     global fileUploaded
@@ -74,7 +93,8 @@ def setupPanels(window, img_s, img_l):
     right_frame.grid(row=0, column=1, padx=10, pady=5)
 
     # add image to right frame
-    Label(right_frame, image=img_l).grid(row=0,column=0,padx=10,pady=10)
+    b2 =tk.Button(right_frame,image=img_l, command=lambda: upload_file()) # using Button 
+    b2.grid(row=0,column=1)
 
 
     # tool bar
@@ -82,8 +102,8 @@ def setupPanels(window, img_s, img_l):
     tool_bar.grid(row=2,column=0,padx=5,pady=5)
 
     # menu buttons
-    cameraButton = tk.Button(tool_bar, text='Use Webcam', command=lambda:webcam.runCamera()).grid(row=0,column=0,padx=5,pady=3,ipadx=10)
-    uploadButton = tk.Button(tool_bar, text='Upload File', command= lambda:upload_file()).grid(row=1,column=0,padx=5,pady=3,ipadx=10)
+    cameraButton = tk.Button(tool_bar, text='Use Webcam', command=clicked).grid(row=0,column=0,padx=5,pady=3,ipadx=10)
+    uploadButton = tk.Button(tool_bar, text='Upload Image', command= lambda:upload_file()).grid(row=1,column=0,padx=5,pady=3,ipadx=10)
     runButton = tk.Button(tool_bar, text='Run', command=lambda:run_algorythm()).grid(row=2,column=0,padx=5,pady=3,ipadx=10)
 
     return window
@@ -116,19 +136,25 @@ def run_algorythm():
 
         img=ImageTk.PhotoImage(img_resized)
         
-        b2 =tk.Button(m,image=img) # using Button 
+        b2 =tk.Button(m,image=img, command=lambda: popupm(b2)) # using Button 
         b2.grid(row=0,column=1)
         
         cv2.imshow("Image", relativePath)
         # cv2.waitKey(5000)
     
-
+# initialize screen
 m = initScreen()
 
 # setup default image, resizes them for left and right panel respectfully
-default_img_s, default_img_l = initImages("baseImg.png")
+default_img_s, default_img_l = initImages("imageUpload.jpg")
 
 # update window with panels
 m = setupPanels(m, default_img_s, default_img_l)
 
+# Pop up menu build
+popup = Menu(m, tearoff=0)
+
+popup.add_command(label="Save", command=lambda: saveImg())
+
+# run mainloop
 m.mainloop()
