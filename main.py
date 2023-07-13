@@ -58,23 +58,35 @@ def upload_file():
 
 # Function called that oversees all of the camera functions
 def run_camera():
-    # reading the input using the camera
-    ret,frame=vid.read()
+    global img
+    global img_s
+    # Get the latest frame and convert into Image
+    f = vid.read()[1]
+    frame = cv2.cvtColor(f, cv2.COLOR_BGR2RGB)
+    image = Image.fromarray(frame, 'RGB')
+    # Convert image to PhotoImage
+    img = ImageTk.PhotoImage(image.resize((500, 400)))
+    img_s = ImageTk.PhotoImage(image.resize((100, 80)))
+ 
+    label = Label(m)
+    label.grid(row=0, column=1)
+    label.imgtk = img
+    label.configure(image=img)
 
-    # THE BUTTON PRESS TO CHANGE
-    # Once this key is pressed getFrame is flipped
+    cv2.waitKey()
+
+    # # THE BUTTON PRESS TO CHANGE
+    # # Once this key is pressed getFrame is flipped
     if keyboard.is_pressed("b"):
         global getFrame
         getFrame = False
         # Needed so holding down the button does not send multiple commands
         time.sleep(.2)
 
-    # output
-    image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    show_image(image)
+    # Save to file
     global filename
     filename = "saved.jpg"
-    cv2.imwrite(filename, frame)
+    cv2.imwrite(filename, f)
     update_left_panel()
     global fileUploaded
     fileUploaded = file_uploaded()
@@ -90,19 +102,6 @@ def show_file(filename):
     img_s=ImageTk.PhotoImage(img_resized_s)
     b2 =tk.Button(m,image=img) # , command=lambda: popupm(b2) 
     b2.grid(row=0,column=1)
-
-def show_image(image):
-    global img
-    global img_s
-    img = Image.fromarray(image, 'RGB')
-    img_resized=img.resize((500,400)) # new width & height
-    img_resized_s=img.resize((100,80)) # new width & height
-    img=ImageTk.PhotoImage(img_resized)
-    img_s=ImageTk.PhotoImage(img_resized_s)
-    b2 =tk.Button(m,image=img) # using Button 
-    b2.grid(row=0,column=1)
-
-
     
 #initializes image, retuns image in small and large size
 def initImages(source):
@@ -130,14 +129,12 @@ def setupPanels(window, img_s, img_l):
     #left frame menu items
     left_label = Label(left_frame, image=img_s, text="Original Image", relief=RAISED,bg='#ad4b6f',fg='#FFFFFF',padx=5,pady=1).grid(row=0,column=0,padx=5,pady=5)
 
-
     # right frame, for image to be detected with
-    right_frame = Frame(window, width=600,height=400,bg='#669aaf')
+    right_frame = Frame(window, width=600,height=400,bg='#669fff')
     right_frame.grid(row=0, column=1, padx=10, pady=5)
 
     # add image to right frame
-    b2 =tk.Button(right_frame,image=img_l, command=lambda: upload_file()) # using Button 
-    b2.grid(row=0,column=1)
+    tk.Button(right_frame,image=img_l, command=lambda: upload_file()).grid(row=0,column=1)
 
 
     # tool bar
@@ -154,11 +151,17 @@ def setupPanels(window, img_s, img_l):
 
 def start_frame():
     global getFrame
+    global vid
+    vid = cv2.VideoCapture(cam_port)
     getFrame = True
 
 # updates the left panel upon image upload
 def update_left_panel():
-    left_label = Label(left_frame, image=img_s, text="Original Image", relief=RAISED,bg='#ad4b6f',fg='#FFFFFF',padx=5,pady=1).grid(row=0,column=0,padx=5,pady=5)
+    label = Label(left_frame)
+    label.grid(row=0, column=0)
+    label.imgtk = img_s
+    label.configure(image=img_s)
+    # left_label = Label(left_frame, image=img_s, text="Original Image", relief=RAISED,bg='#ad4b6f',fg='#FFFFFF',padx=5,pady=1).grid(row=0,column=0,padx=5,pady=5)
 
 # runs yolo object detection algorythm
 def run_algorythm():
@@ -192,7 +195,7 @@ def run_algorythm():
     b2.grid(row=0,column=1)
     
     cv2.imshow("Image", relativePath)
-    # cv2.waitKey(5000)
+    # cv2.waitKey()
     
 # initialize screen
 m = initScreen()
@@ -202,7 +205,6 @@ default_img_s, default_img_l = initImages("imageUpload.jpg")
 
 # update window with panels
 m = setupPanels(m, default_img_s, default_img_l)
-m.bind('<Escape>', lambda e: m.quit())
 
 # Pop up menu build
 popup = Menu(m, tearoff=0)
@@ -218,5 +220,5 @@ getFrame = False
 while True:
     m.update()
     if(getFrame): run_camera()
-    # Running at about 30 fps
-    time.sleep(.0333)
+    else: vid.release()
+    time.sleep(.002)
