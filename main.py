@@ -33,14 +33,15 @@ def popupm(b2):
      finally:
            popup.grab_release()
 
-# Function to save image to users desktop
+#   Function to save image to users desktop
 def saveImg():
-    edge = ImageTk.getimage(img)
+    print(relativePath)
+    detectedImage = ImageTk.getimage(relativePath)
     f = asksaveasfile(mode="w",initialfile = 'Untitled.jpg',
     defaultextension=".jpg",filetypes=[('Jpg Files', '*.jpg'),('Png Files', '*.png')])
     if not f:
         return
-    edge.save(f)
+    detectedImage.save(f)
 
 # simple function to show error
 def showError():
@@ -82,8 +83,10 @@ def run_camera():
         getFrame = False
         # Needed so holding down the button does not send multiple commands
         time.sleep(.2)
-
-    # Save to file
+    # convert color scale of frame
+    bgrFrame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+    # output
+    show_image(bgrFrame)
     global filename
     filename = "saved.jpg"
     cv2.imwrite(filename, f)
@@ -123,6 +126,8 @@ def setupPanels(window, img_s, img_l):
     global left_frame 
     global left_label
     global getFrame
+    global modelName
+
     left_frame = Frame(window, width=200, height=400, bg='#669aaf')
     left_frame.grid(row=0, column=0, padx=10, pady=5)
 
@@ -145,6 +150,16 @@ def setupPanels(window, img_s, img_l):
     cameraButton = tk.Button(tool_bar, text='Use Webcam', command=lambda:start_frame()).grid(row=0,column=0,padx=5,pady=3,ipadx=10)
     uploadButton = tk.Button(tool_bar, text='Upload Image', command= lambda:upload_file()).grid(row=1,column=0,padx=5,pady=3,ipadx=10)
     runButton = tk.Button(tool_bar, text='Run', command=lambda:run_algorythm()).grid(row=2,column=0,padx=5,pady=3,ipadx=10)
+    
+    # variable for detection model
+    modelName = StringVar(m)
+    modelName.set("yolov8n.pt")
+
+    # drop down to select object detection model
+    modelMenu = tk.OptionMenu(left_frame, modelName, "yolov8n.pt", "other model").grid(row=3,column=0,padx=5,pady=3,ipadx=10)
+
+    
+    
 
     return window
 
@@ -165,6 +180,7 @@ def update_left_panel():
 
 # runs yolo object detection algorythm
 def run_algorythm():
+    global relativePath
     # Makes sure a file is actually uploaded
     try:
         print(fileUploaded)
@@ -181,7 +197,7 @@ def run_algorythm():
         print("No previous runs")
 
     # Creates the bounding box on the image
-    model = YOLO('yolov8n.pt')
+    model = YOLO(modelName.get())
     results = model.predict(source=filename, save=True)
     # finding image and saving it to a variable
     imageName = filename.split('/')
