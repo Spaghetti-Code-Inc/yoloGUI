@@ -83,10 +83,7 @@ def run_camera():
         getFrame = False
         # Needed so holding down the button does not send multiple commands
         time.sleep(.2)
-    # convert color scale of frame
-    bgrFrame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-    # output
-    show_image(bgrFrame)
+
     global filename
     filename = "saved.jpg"
     cv2.imwrite(filename, f)
@@ -127,6 +124,7 @@ def setupPanels(window, img_s, img_l):
     global left_label
     global getFrame
     global modelName
+    global tool_bar
 
     left_frame = Frame(window, width=200, height=400, bg='#669aaf')
     left_frame.grid(row=0, column=0, padx=10, pady=5)
@@ -140,7 +138,6 @@ def setupPanels(window, img_s, img_l):
 
     # add image to right frame
     tk.Button(right_frame,image=img_l, command=lambda: upload_file()).grid(row=0,column=1)
-
 
     # tool bar
     tool_bar = Frame(left_frame, width=100, height=185, bg='#669aaf')
@@ -158,9 +155,6 @@ def setupPanels(window, img_s, img_l):
     # drop down to select object detection model
     modelMenu = tk.OptionMenu(left_frame, modelName, "yolov8n.pt", "other model").grid(row=3,column=0,padx=5,pady=3,ipadx=10)
 
-    
-    
-
     return window
 
 
@@ -168,7 +162,17 @@ def start_frame():
     global getFrame
     global vid
     vid = cv2.VideoCapture(cam_port)
+    # Need the spaces to give it more padding
+    tk.Button(tool_bar, text=' Take Picture ', command=lambda:end_frame()).grid(row=0,column=0,padx=5,pady=3,ipadx=10)
+
     getFrame = True
+
+def end_frame():
+    global getFrame
+    # replace 'Take Picture' Button with 'Use Webcam'
+    getFrame = False
+    tk.Button(tool_bar, text='Use Webcam', command=lambda:start_frame()).grid(row=0,column=0,padx=5,pady=3,ipadx=10)
+
 
 # updates the left panel upon image upload
 def update_left_panel():
@@ -180,6 +184,11 @@ def update_left_panel():
 
 # runs yolo object detection algorythm
 def run_algorythm():
+    # do not run the algorithm if the user is still using webcam
+    if getFrame: 
+        showError()
+        return
+
     global relativePath
     # Makes sure a file is actually uploaded
     try:
@@ -196,9 +205,9 @@ def run_algorythm():
     except:
         print("No previous runs")
 
-    # Creates the bounding box on the image
-    model = YOLO(modelName.get())
-    results = model.predict(source=filename, save=True)
+    # make the prediction from the model
+    global model
+    model.predict(source=filename, save=True)
     # finding image and saving it to a variable
     imageName = filename.split('/')
     relativePath = "runs\detect\predict\\"+str(imageName[-1])
@@ -227,12 +236,13 @@ popup = Menu(m, tearoff=0)
 
 popup.add_command(label="Save", command=lambda: saveImg())
 
-
-
 # initialize the camera
 cam_port = 0
 vid = cv2.VideoCapture(cam_port)
 getFrame = False
+
+# Creates the bounding box on the image - ##################################################### Check if model can change
+model = YOLO(modelName.get())
 while True:
     m.update()
     if(getFrame): run_camera()
