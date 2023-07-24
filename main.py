@@ -71,12 +71,27 @@ def run_camera():
         output = model.predict(output)  
 
         boxes = output[0].boxes
-        
-        for box in boxes.xyxy:
+
+        for i, box in enumerate(boxes.xyxy):
+            class_num = int(boxes.cls[i].item())
+            name = class_names[class_num]
+            
+            print(name)
+
+            # Left, Top of bounding box
             start_point = (int(box[0].item()), int(box[1].item()))
+            # Right, Bottom of bounding box
             end_point = (int(box[2].item()), int(box[3].item()))
-            color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+            # Gets the color of the bounding box based on the class
+            color = class_color[class_num]
+
+            # Draws the bounding box on the image
             frame = cv2.rectangle(frame, start_point, end_point, color, 2)
+            frame = cv2.putText(frame, name,
+                                (int(box[0]), int(box[1]-5)),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, color,
+                                2, lineType=cv2.LINE_AA
+                                )
 
     image = Image.fromarray(frame, 'RGB')
 
@@ -275,6 +290,14 @@ viewInferenceFrame = False
 
 # Creates the bounding box on the image - ##################################################### Check if model can change
 model = YOLO(modelName.get())
+class_names = model.model.names
+class_color = []
+
+print(class_names)
+
+for name in class_names:
+    class_color.append((random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)))
+
 while True:
     m.update()
     if(getFrame): run_camera()
