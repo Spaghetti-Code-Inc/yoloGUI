@@ -9,10 +9,10 @@ from tkinter import messagebox
 from ultralytics import YOLO
 from PIL import Image, ImageTk
 import cv2
-import os
-import keyboard
+import random
 import time
 import shutil
+import numpy as np
 
 getFrame = False
 
@@ -59,12 +59,27 @@ def upload_file():
 
 # Function called that oversees all of the camera functions
 def run_camera():
-    global img
-    global img_s
+    global img, img_s, viewInferenceFrame, model
+    global filename
+
     # Get the latest frame and convert into Image
     f = vid.read()[1]
     frame = cv2.cvtColor(f, cv2.COLOR_BGR2RGB)
+    output = Image.fromarray(frame, 'RGB')
+
+    if(viewInferenceFrame): 
+        output = model.predict(output)  
+
+        boxes = output[0].boxes
+        
+        for box in boxes.xyxy:
+            start_point = (int(box[0].item()), int(box[1].item()))
+            end_point = (int(box[2].item()), int(box[3].item()))
+            color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+            frame = cv2.rectangle(frame, start_point, end_point, color, 2)
+
     image = Image.fromarray(frame, 'RGB')
+
     # Convert image to PhotoImage
     img = ImageTk.PhotoImage(image.resize((500, 400)))
     img_s = ImageTk.PhotoImage(image.resize((100, 80)))
@@ -73,18 +88,12 @@ def run_camera():
     label.grid(row=0, column=1)
     label.imgtk = img
     label.configure(image=img)
-
+    # Wait for image to show up
     cv2.waitKey()
 
-    # # THE BUTTON PRESS TO CHANGE
-    # # Once this key is pressed getFrame is flipped
-    if keyboard.is_pressed("b"):
-        global getFrame
-        getFrame = False
-        # Needed so holding down the button does not send multiple commands
-        time.sleep(.2)
+    # Do not save the image when running inference on it
+    if(viewInferenceFrame): return
 
-    global filename
     filename = "saved.jpg"
     cv2.imwrite(filename, f)
     update_left_panel()
@@ -146,7 +155,7 @@ def setupPanels(window, img_s, img_l):
     # menu buttons
     cameraButton = tk.Button(tool_bar, text='Use Webcam', command=lambda:start_frame()).grid(row=0,column=0,padx=5,pady=3,ipadx=10)
     uploadButton = tk.Button(tool_bar, text='Upload Image', command= lambda:upload_file()).grid(row=1,column=0,padx=5,pady=3,ipadx=10)
-    runButton = tk.Button(tool_bar, text='Run', command=lambda:run_algorythm()).grid(row=2,column=0,padx=5,pady=3,ipadx=10)
+    runButton = tk.Button(tool_bar, text='        Run         ', command=lambda:run_algorythm()).grid(row=2,column=0,padx=5,pady=3,ipadx=10)
     
     # variable for detection model
     modelName = StringVar(m)
@@ -164,14 +173,18 @@ def start_frame():
     vid = cv2.VideoCapture(cam_port)
     # Need the spaces to give it more padding
     tk.Button(tool_bar, text=' Take Picture ', command=lambda:end_frame()).grid(row=0,column=0,padx=5,pady=3,ipadx=10)
+    # Changes the run button
+    tk.Button(tool_bar, text='Run on Video', command=lambda:run_video_algorithm()).grid(row=2,column=0,padx=5,pady=3,ipadx=10)
 
     getFrame = True
 
 def end_frame():
     global getFrame
-    # replace 'Take Picture' Button with 'Use Webcam'
     getFrame = False
+
+    # replace 'Take Picture' Button with 'Use Webcam' nad replace run button
     tk.Button(tool_bar, text='Use Webcam', command=lambda:start_frame()).grid(row=0,column=0,padx=5,pady=3,ipadx=10)
+    tk.Button(tool_bar, text='        Run         ', command=lambda:run_algorythm()).grid(row=2,column=0,padx=5,pady=3,ipadx=10)
 
 
 # updates the left panel upon image upload
@@ -181,6 +194,21 @@ def update_left_panel():
     label.imgtk = img_s
     label.configure(image=img_s)
     # left_label = Label(left_frame, image=img_s, text="Original Image", relief=RAISED,bg='#ad4b6f',fg='#FFFFFF',padx=5,pady=1).grid(row=0,column=0,padx=5,pady=5)
+
+def stop_VideoInference():
+    global viewInferenceFrame
+    viewInferenceFrame = False
+
+    # Changes the run button
+    tk.Button(tool_bar, text='Run on Video', command=lambda:run_video_algorithm()).grid(row=2,column=0,padx=5,pady=3,ipadx=10)
+
+
+# Tells video to run inference on every frame that comes in
+def run_video_algorithm():
+    global viewInferenceFrame
+    viewInferenceFrame = True
+
+    tk.Button(tool_bar, text='  Stop Video   ', command=lambda:stop_VideoInference()).grid(row=2,column=0,padx=5,pady=3,ipadx=10)
 
 # runs yolo object detection algorythm
 def run_algorythm():
@@ -211,7 +239,10 @@ def run_algorythm():
     # finding image and saving it to a variable
     imageName = filename.split('/')
     relativePath = "runs\detect\predict\\"+str(imageName[-1])
-    img=Image.open(relativePath)
+    try: 
+        img=Image.open(relativePath)
+    except:
+        print(relativePath + "-- Did not find")
     img_resized=img.resize((500,400)) # new width & height
 
     img=ImageTk.PhotoImage(img_resized)
@@ -240,6 +271,7 @@ popup.add_command(label="Save", command=lambda: saveImg())
 cam_port = 0
 vid = cv2.VideoCapture(cam_port)
 getFrame = False
+viewInferenceFrame = False
 
 # Creates the bounding box on the image - ##################################################### Check if model can change
 model = YOLO(modelName.get())
