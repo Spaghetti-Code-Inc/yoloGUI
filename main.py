@@ -1,4 +1,4 @@
-# Program to make user interface for yolo algorythm with different functions
+# Program to make user interface for yolo algorithm with different functions
 
 import tkinter as tk
 from tkinter import *
@@ -13,6 +13,9 @@ import random
 import time
 import shutil
 import numpy as np
+import os
+
+CONFIDENCE_THRESHOLD = 0.4
 
 getFrame = False
 
@@ -65,16 +68,16 @@ def run_camera():
     # Get the latest frame and convert into Image
     f = vid.read()[1]
     frame = cv2.cvtColor(f, cv2.COLOR_BGR2RGB)
-    output = Image.fromarray(frame, 'RGB')
+    output = Image.fromarray(frame, 'RGB') 
 
     if(viewInferenceFrame): 
-        output = model.predict(output)  
+        output = model.predict(output, conf=CONFIDENCE_THRESHOLD, verbose=False)  
 
         boxes = output[0].boxes
 
         for i, box in enumerate(boxes.xyxy):
             class_num = int(boxes.cls[i].item())
-            name = class_names[class_num]
+            name = CLASS_NAMES[class_num]
             
             print(name)
 
@@ -83,7 +86,7 @@ def run_camera():
             # Right, Bottom of bounding box
             end_point = (int(box[2].item()), int(box[3].item()))
             # Gets the color of the bounding box based on the class
-            color = class_color[class_num]
+            color = CLASS_COLOR[class_num]
 
             # Draws the bounding box on the image
             frame = cv2.rectangle(frame, start_point, end_point, color, 2)
@@ -227,7 +230,7 @@ def run_video_algorithm():
 
 # runs yolo object detection algorythm
 def run_algorythm():
-    # do not run the algorithm if the user is still using webcam
+    # do not run the algorithm if the user is still using webcam -- Redundant Check
     if getFrame: 
         showError()
         return
@@ -235,29 +238,27 @@ def run_algorythm():
     global relativePath
     # Makes sure a file is actually uploaded
     try:
-        print(fileUploaded)
+        if(fileUploaded == False): return
     except:
         print("must upload image first")
         showError()
         return
-    if(fileUploaded == False):
-        return
-    try:
-        print("try to remove tree")
-        shutil.rmtree("runs")
-    except:
-        print("No previous runs")
+
 
     # make the prediction from the model
     global model
-    model.predict(source=filename, save=True)
-    # finding image and saving it to a variable
-    imageName = filename.split('/')
-    relativePath = "runs\detect\predict\\"+str(imageName[-1])
+    results = model.predict(source=filename, save=True, conf=CONFIDENCE_THRESHOLD, verbose=False)
+    
+    # The directory the annotated image was saved to
+    save_directory = results[0].save_dir
+    relativePath = save_directory + "\\" + filename
+
+    # Opens image
     try: 
         img=Image.open(relativePath)
     except:
         print(relativePath + "-- Did not find")
+        
     img_resized=img.resize((500,400)) # new width & height
 
     img=ImageTk.PhotoImage(img_resized)
@@ -265,9 +266,10 @@ def run_algorythm():
     b2 =tk.Button(m,image=img, command=lambda: popupm(b2)) # using Button 
     b2.grid(row=0,column=1)
     
-    cv2.imshow("Image", relativePath)
-    # cv2.waitKey()
-    
+    # Throws error, but image is not shown without the error
+    cv2.imshow("Image", img)
+    cv2.waitKey()
+
 # initialize screen
 m = initScreen()
 
@@ -290,13 +292,13 @@ viewInferenceFrame = False
 
 # Creates the bounding box on the image - ##################################################### Check if model can change
 model = YOLO(modelName.get())
-class_names = model.model.names
-class_color = []
 
-print(class_names)
+CLASS_NAMES = model.model.names
+CLASS_COLOR = []
 
-for name in class_names:
-    class_color.append((random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)))
+# Creates all of the class bounding boxes
+for name in CLASS_NAMES:
+    CLASS_COLOR.append((random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)))
 
 while True:
     m.update()
