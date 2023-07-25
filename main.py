@@ -251,7 +251,7 @@ def run_algorythm():
     
     # The directory the annotated image was saved to
     save_directory = results[0].save_dir
-    relativePath = save_directory + "\\" + filename
+    relativePath = save_directory + "\\" + filename.split("/")[-1]
 
     # Opens image
     try: 
