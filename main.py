@@ -10,6 +10,7 @@ from ultralytics import YOLO
 from PIL import Image, ImageTk
 import cv2
 import random
+import os
 
 CONFIDENCE_THRESHOLD = 0.4
 
@@ -63,7 +64,7 @@ def upload_file():
 # Function called that oversees all of the camera functions
 def run_camera():
     global img, img_s, viewInferenceFrame, model
-    global filename
+    global filename, inf_img
 
     # Get the latest frame and convert into Image
     f = vid.read()[1]
@@ -93,6 +94,8 @@ def run_camera():
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, color,
                                 2, lineType=cv2.LINE_AA
                                 )
+            
+            inf_img.append(frame)
 
     image = Image.fromarray(frame, 'RGB')
 
@@ -177,7 +180,6 @@ def setupPanels(window, img_s, img_l):
 
     return window
 
-
 def start_frame():
     global getFrame
     global vid
@@ -226,7 +228,6 @@ def end_frame():
     tk.Button(tool_bar, text='Use Webcam', command=lambda:start_frame()).grid(row=0,column=0,padx=5,pady=3,ipadx=10)
     tk.Button(tool_bar, text='        Run         ', command=lambda:run_algorythm()).grid(row=2,column=0,padx=5,pady=3,ipadx=10)
 
-
 # updates the left panel upon image upload
 def update_left_panel():
     label = Label(left_frame)
@@ -236,12 +237,25 @@ def update_left_panel():
     # left_label = Label(left_frame, image=img_s, text="Original Image", relief=RAISED,bg='#ad4b6f',fg='#FFFFFF',padx=5,pady=1).grid(row=0,column=0,padx=5,pady=5)
 
 def stop_VideoInference():
-    global viewInferenceFrame
+    global viewInferenceFrame, inf_video, inf_img
     viewInferenceFrame = False
 
+    save_dir = "runs\\detect_video"
+    num = len(os.listdir(save_dir))
+    save_dir = os.path.join(save_dir, "test" + str(num) + ".mp4")
+
+    print("Inference images length: " + str(len(inf_img)) + ", saving to: " + save_dir)
+    inf_video = cv2.VideoWriter(save_dir, cv2.VideoWriter_fourcc('m','p','4','v'), 10, (640, 480))
+    for img in inf_img:
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        inf_video.write(img)
+    # Saves the video
+    inf_video.release()
+    # Resets the video stream
+    inf_img = []
+    
     # Changes the run button
     tk.Button(tool_bar, text='Run on Video', command=lambda:run_video_algorithm()).grid(row=2,column=0,padx=5,pady=3,ipadx=10)
-
 
 # Tells video to run inference on every frame that comes in
 def run_video_algorithm():
@@ -321,6 +335,18 @@ CLASS_COLOR = []
 # Creates all of the class bounding boxes
 for name in CLASS_NAMES:
     CLASS_COLOR.append((random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)))
+
+# Where all inf images will be saved for a video
+inf_img = []
+
+# Create directories for all saved images
+
+try: os.mkdir('runs')
+except: print("Runs previously made")
+try: os.mkdir('runs\\detect')
+except: print("Detect images previously made")
+try: os.mkdir('runs\\detect_video')
+except: print("Detect video previously made")
 
 while True:
     m.update()
