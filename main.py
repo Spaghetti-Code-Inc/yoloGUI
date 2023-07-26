@@ -10,22 +10,22 @@ from ultralytics import YOLO
 from PIL import Image, ImageTk
 import cv2
 import random
-import time
-import shutil
-import numpy as np
-import os
 
 CONFIDENCE_THRESHOLD = 0.4
 
-getFrame = False
+# Changes the model used when modelName var is changed
+def changeModel(*args):
+    global model, CLASS_COLOR, CLASS_NAMES
+    model = YOLO(modelName.get())
 
-def file_uploaded():
-    fileUploaded = True
-    return fileUploaded
+    CLASS_NAMES = model.model.names
+    CLASS_COLOR = []
 
-# Basic click function, prints to console
-def clicked():
-    print("Clicked")
+    # Creates all of the class bounding boxes
+    for name in CLASS_NAMES:
+        CLASS_COLOR.append((random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)))
+    
+    print("Updated to Model: " + modelName.get())
 
 # function to open pop up menu on image click event
 def popupm(b2):
@@ -58,7 +58,7 @@ def upload_file():
     show_file(filename)
     update_left_panel()
     global fileUploaded
-    fileUploaded = file_uploaded()
+    fileUploaded = True
 
 # Function called that oversees all of the camera functions
 def run_camera():
@@ -79,8 +79,6 @@ def run_camera():
             class_num = int(boxes.cls[i].item())
             name = CLASS_NAMES[class_num]
             
-            print(name)
-
             # Left, Top of bounding box
             start_point = (int(box[0].item()), int(box[1].item()))
             # Right, Bottom of bounding box
@@ -106,17 +104,11 @@ def run_camera():
     label.grid(row=0, column=1)
     label.imgtk = img
     label.configure(image=img)
+
+    update_left_panel()
+
     # Wait for image to show up
     cv2.waitKey()
-
-    # Do not save the image when running inference on it
-    if(viewInferenceFrame): return
-
-    filename = "saved.jpg"
-    cv2.imwrite(filename, f)
-    update_left_panel()
-    global fileUploaded
-    fileUploaded = file_uploaded()
 
 # Function that shows the file on the screen
 def show_file(filename):
@@ -178,9 +170,10 @@ def setupPanels(window, img_s, img_l):
     # variable for detection model
     modelName = StringVar(m)
     modelName.set("yolov8n.pt")
-
+    
     # drop down to select object detection model
-    modelMenu = tk.OptionMenu(left_frame, modelName, "yolov8n.pt", "other model").grid(row=3,column=0,padx=5,pady=3,ipadx=10)
+    options = ["yolov8n.pt", "yolov8m.pt", "gdd-4_2.pt"]
+    tk.OptionMenu(left_frame, modelName, *(options), command=changeModel).grid(row=3,column=0,padx=5,pady=3,ipadx=10)
 
     return window
 
@@ -196,7 +189,36 @@ def start_frame():
 
     getFrame = True
 
+# Takes a picture of the last frame and saves it
 def end_frame():
+    global img, img_s, viewInferenceFrame, model
+    global filename
+
+    # Get the latest frame and convert into Image
+    f = vid.read()[1]
+    frame = cv2.cvtColor(f, cv2.COLOR_BGR2RGB)
+
+    image = Image.fromarray(frame, 'RGB')
+
+    # Convert image to PhotoImage
+    img = ImageTk.PhotoImage(image.resize((500, 400)))
+    img_s = ImageTk.PhotoImage(image.resize((100, 80)))
+ 
+    label = Label(m)
+    label.grid(row=0, column=1)
+    label.imgtk = img
+    label.configure(image=img)
+
+    update_left_panel()
+
+    # Wait for image to show up
+    cv2.waitKey()
+
+    filename = "saved.jpg"
+    cv2.imwrite(filename, f)
+    global fileUploaded
+    fileUploaded = True
+
     global getFrame
     getFrame = False
 
@@ -290,7 +312,6 @@ vid = cv2.VideoCapture(cam_port)
 getFrame = False
 viewInferenceFrame = False
 
-# Creates the bounding box on the image - ##################################################### Check if model can change
 model = YOLO(modelName.get())
 
 CLASS_NAMES = model.model.names
@@ -304,4 +325,3 @@ while True:
     m.update()
     if(getFrame): run_camera()
     else: vid.release()
-    time.sleep(.002)
