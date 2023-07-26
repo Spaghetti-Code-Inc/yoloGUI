@@ -268,7 +268,7 @@ def run_algorythm():
 
 
     # make the prediction from the model
-    global model
+    global model, img_s
     results = model.predict(source=filename, save=True, conf=CONFIDENCE_THRESHOLD, verbose=False)
     
     # The directory the annotated image was saved to
@@ -284,12 +284,13 @@ def run_algorythm():
     img_resized=img.resize((500,400)) # new width & height
 
     img=ImageTk.PhotoImage(img_resized)
-    
-    b2 =tk.Button(m,image=img, command=lambda: popupm(b2)) # using Button 
-    b2.grid(row=0,column=1)
-    
-    # Throws error, but image is not shown without the error
-    cv2.imshow("Image", img)
+ 
+    label = Label(m)
+    label.grid(row=0, column=1)
+    label.imgtk = img
+    label.configure(image=img)
+
+    # Wait for image to show up
     cv2.waitKey()
 
 # initialize screen
