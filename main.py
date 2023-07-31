@@ -3,7 +3,6 @@
 import tkinter as tk
 from tkinter import *
 from tkinter import filedialog
-from tkinter.filedialog import askopenfile
 from tkinter.filedialog import asksaveasfile
 from tkinter import messagebox
 from ultralytics import YOLO
@@ -175,7 +174,7 @@ def setupPanels(window, img_s, img_l):
     modelName.set("yolov8n.pt")
     
     # drop down to select object detection model
-    options = ["yolov8n.pt", "yolov8m.pt", "gdd-4_2.pt"]
+    options = ["yolov8n.pt", "yolov8m.pt", 'yolo_WeaponDetection.pt']
     tk.OptionMenu(left_frame, modelName, *(options), command=changeModel).grid(row=3,column=0,padx=5,pady=3,ipadx=10)
 
     return window
